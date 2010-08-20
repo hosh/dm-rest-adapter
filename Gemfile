@@ -41,6 +41,8 @@ group :runtime do # Runtime dependencies (as in the gemspec)
 
   gem 'dm-core',         DM_VERSION, :git => "#{DATAMAPPER}/dm-core.git"
   gem 'dm-serializer',   DM_VERSION, :git => "#{DATAMAPPER}/dm-serializer.git"
+  gem 'typhoeus'
+  gem 'yajl-ruby'
 
 end
 
