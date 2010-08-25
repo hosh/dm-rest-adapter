@@ -12,65 +12,39 @@ end
 module DataMapperRest
   # Extracted from private code
   class Connection
+    attr_accessor :connection_options
 
-    attr_reader :environment, :connection_options, :auth_token 
-    class_inheritable_accessor :default_connection
-
-    def initialize(options = {})
-      @environment = options[:environment] || Rails.env
-      @connection_options = ACCESS_CREDENTIALS[@environment].merge(options)
+    def initialize(_connection_options)
+      self.connection_options = _connection_options
     end
 
-    # Replace this with the URI library?
-    def base_url
-      @base_url ||= [
-        (ssl? ? 'https://' : 'http://' ), 
-        connection_options[:host],
-        ':' + (connection_options[:port].to_s || (ssl? ? '443' : '80'))].join
+    def site_uri
+      @site_uri ||= connection_options[:site_uri]
     end
 
-    def ssl?
-      connection_options[:ssl]
-    end
-
-    def authenticate!
-      true
-    end
-
-    # TODO: Add :payload that intelligently figure out GET or POST requests
     # TODO: Add auto-reauthenticate, probably have to put it in a thread-safe queue or something
     def request(method, path, options = {})
-      authenticate! unless self.auth_token
       request = {
         :headers => { 
-        'X-Auth-Token' => self.auth_token ,
-        # TODO: Fix this hard-coded JSON mime-type
-        'Content-Type' => Mime::JSON.to_s,}.merge(options[:headers] || {}), 
+          # TODO: Fix this hard-coded JSON mime-type
+          'Content-Type' => Mime::JSON.to_s,}.merge(options[:headers] || {}), 
         :method  => method }
+      request.merge!(:params => options[:params]) if options[:params]
 
-        # See O'Reilly The Ruby Programming Language, p 126
-        case method
-        when :post, :put
-          request.merge!(:body => options[:payload])
-        else
-        end
+      # See O'Reilly The Ruby Programming Language, p 126
+      case method
+      when :post, :put
+        request.merge!(:body => options[:payload])
+      else
+      end
 
-        handle_response(Typhoeus::Request.run("#{self.base_url}/#{path}", request))
+      handle_response(Typhoeus::Request.run((site_uri + path).to_s, request))
     end
 
     [:head, :get, :post, :put, :delete].each do |method|
       define_method("http_#{method}") do |path, options|
         self.request(method, path, options || {})
       end
-    end
-
-    # Convenience methods
-    def self.set_default_connection(connection)
-      Connection.default_connection = connection
-    end
-
-    def self.connection
-      Connection.default_connection
     end
 
     # Handles response and error codes from remote service.

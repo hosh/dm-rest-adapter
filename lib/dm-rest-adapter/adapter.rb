@@ -1,14 +1,43 @@
 module DataMapperRest
-  # TODO: Abstract XML support out from the protocol
-  # TODO: Build JSON support
-
-  # All http_"verb" (http_post) method calls use method missing in connection class which uses run_verb
   class Adapter < DataMapper::Adapters::AbstractAdapter
+    # TODO: Refactor better
+    JSON_PARSER = proc do |body, model|
+      element_name = model.storage_name(self.name).singularize
+      field_to_property = model.properties(name).map { |p| [ p.field, p ] }.to_hash
+      raw_record = Yajl::Parser.parse(body)
+
+      record = {}
+      raw_record.each do |field, value|
+        # TODO: push this to the per-property mix-in for this adapter
+        next unless property = field_to_property[field]
+        record[field] = property.typecast(value)
+      end
+      record
+    end
+
+    MULTI_JSON_PARSER = proc do |body, model|
+      element_name = model.storage_name(self.name).singularize
+      field_to_property = model.properties(name).map { |p| [ p.field, p ] }.to_hash
+      raw_record = Yajl::Parser.parse(body)
+
+      records = []
+      raw_records.each do |raw_record|
+        record = {}
+        raw_record.each do |field, value|
+          # TODO: push this to the per-property mix-in for this adapter
+          next unless property = field_to_property[field]
+          record[field] = property.typecast(value)
+        end
+        records << record
+      end
+      records
+    end
+
     def create(resources)
       resources.each do |resource|
         model = resource.model
 
-        response = connection.http_post("#{resource_name(model)}", resource.to_xml)
+        response = connection.http_post("#{resource_name(model)}", :payload => resource.to_json)
 
         update_with_response(resource, response)
       end
@@ -19,14 +48,10 @@ module DataMapperRest
 
       records = if id = extract_id_from_query(query)
         response = connection.http_get("#{resource_name(model)}/#{id}")
-        [ parse_resource(response.body, model) ]
+        [ JSON_PARSER.call(response.body, model) ]
       else
-        query_string = if (params = extract_params_from_query(query)).any?
-          params.map { |k,v| "#{CGI.escape(k.to_s)}=#{CGI.escape(v.to_s)}" }.join('&')
-        end
-
-        response = connection.http_get("#{resource_name(model)}#{'?' << query_string if query_string}")
-        parse_resources(response.body, model)
+        response = connection.http_get(resource_name(model), :params => extract_params_from_query(query))
+        MULTI_JSON_PARSER.call(response.body, model)
       end
 
       query.filter_records(records)
@@ -40,7 +65,7 @@ module DataMapperRest
 
         dirty_attributes.each { |p, v| p.set!(resource, v) }
 
-        response = connection.http_put("#{resource_name(model)}/#{id}", resource.to_xml)
+        response = connection.http_put("#{resource_name(model)}/#{id}", :payload => resource.to_xml)
 
         update_with_response(resource, response)
       end.size
@@ -59,32 +84,24 @@ module DataMapperRest
 
     private
 
-    def initialize(*)
-      super
-      @format = @options.fetch(:format, 'xml')
+    def format
+      @format = @options.fetch(:format, 'json')
     end
 
     def connection
-      @connection ||= Connection.new(normalized_uri, @format)
+      @connection ||= Connection.new(:site_uri => site_uri, :format => format)
     end
 
-    def normalized_uri
-      @normalized_uri ||=
+    def site_uri
+      @site_uri ||=
         begin
-          query = @options.except(:adapter, :user, :password, :host, :port, :path, :fragment)
-          query = nil if query.empty?
-
-          Addressable::URI.new(
-            :scheme       => 'http',
-            :user         => @options[:user],
-            :password     => @options[:password],
-            :host         => @options[:host],
-            :port         => @options[:port],
-            :path         => @options[:path],
-            :query_values => query,
-            :fragment     => @options[:fragment]
-          ).freeze
+          site_uri = @options[:site_uri]
+          Addressable::URI.parse(site_uri).freeze
         end
+    end
+
+    def ssl?
+      @ssl ||= @options.fetch(:ssl, false)
     end
 
     def extract_id_from_query(query)
@@ -107,47 +124,6 @@ module DataMapperRest
       query.options
     end
 
-    def record_from_rexml(entity_element, field_to_property)
-      record = {}
-
-      entity_element.elements.map do |element|
-        # TODO: push this to the per-property mix-in for this adapter
-        field = element.name.to_s.tr('-', '_')
-        next unless property = field_to_property[field]
-        record[field] = property.typecast(element.text)
-      end
-
-      record
-    end
-
-    def parse_resource(xml, model)
-      doc = REXML::Document::new(xml)
-
-      element_name = element_name(model)
-
-      unless entity_element = REXML::XPath.first(doc, "/#{element_name}")
-        raise "No root element matching #{element_name} in xml"
-      end
-
-      field_to_property = model.properties(name).map { |p| [ p.field, p ] }.to_hash
-      record_from_rexml(entity_element, field_to_property)
-    end
-
-    def parse_resources(xml, model)
-      doc = REXML::Document::new(xml)
-
-      field_to_property = model.properties(name).map { |p| [ p.field, p ] }.to_hash
-      element_name      = element_name(model)
-
-      doc.elements.collect("/#{resource_name(model)}/#{element_name}") do |entity_element|
-        record_from_rexml(entity_element, field_to_property)
-      end
-    end
-
-    def element_name(model)
-      model.storage_name(self.name).singularize
-    end
-
     def resource_name(model)
       model.storage_name(self.name)
     end
@@ -158,7 +134,7 @@ module DataMapperRest
       model      = resource.model
       properties = model.properties(name)
 
-      parse_resource(response.body, model).each do |key, value|
+      JSON_PARSER.call(response.body, model).each do |key, value|
         if property = properties[key.to_sym]
           property.set!(resource, value)
         end
