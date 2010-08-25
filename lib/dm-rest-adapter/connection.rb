@@ -42,8 +42,9 @@ module DataMapperRest
     end
 
     [:head, :get, :post, :put, :delete].each do |method|
-      define_method("http_#{method}") do |path, options|
-        self.request(method, path, options || {})
+      define_method("http_#{method}") do |*args|
+        path = args.shift
+        self.request(method, path, *args)
       end
     end
 

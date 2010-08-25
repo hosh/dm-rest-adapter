@@ -92,6 +92,10 @@ module DataMapperRest
       @connection ||= Connection.new(:site_uri => site_uri, :format => format)
     end
 
+    def connection_options
+      @options
+    end
+
     def site_uri
       @site_uri ||=
         begin
