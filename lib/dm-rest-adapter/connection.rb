@@ -27,7 +27,8 @@ module DataMapperRest
       request = {
         :headers => { 
           # TODO: Fix this hard-coded JSON mime-type
-          'Content-Type' => Mime::JSON.to_s,}.merge(options[:headers] || {}), 
+          'Accept' => Mime::JSON.to_s,
+          'Content-Type' => Mime::JSON.to_s}.merge(options[:headers] || {}), 
         :method  => method }
       request.merge!(:params => options[:params]) if options[:params]
 
