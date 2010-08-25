@@ -7,7 +7,7 @@ module DataMapperRest
       raw_record = Yajl::Parser.parse(body)
 
       record = {}
-      raw_record.each do |field, value|
+      raw_record[element_name].each do |field, value|
         # TODO: push this to the per-property mix-in for this adapter
         next unless property = field_to_property[field]
         record[field] = property.typecast(value)
