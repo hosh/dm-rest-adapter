@@ -18,12 +18,12 @@ module DataMapperRest
     MULTI_JSON_PARSER = proc do |body, model|
       element_name = model.storage_name(self.name).singularize
       field_to_property = model.properties(name).map { |p| [ p.field, p ] }.to_hash
-      raw_record = Yajl::Parser.parse(body)
+      raw_records = Yajl::Parser.parse(body)
 
       records = []
       raw_records.each do |raw_record|
         record = {}
-        raw_record.each do |field, value|
+        raw_record[element_name].each do |field, value|
           # TODO: push this to the per-property mix-in for this adapter
           next unless property = field_to_property[field]
           record[field] = property.typecast(value)
@@ -33,11 +33,15 @@ module DataMapperRest
       records
     end
 
+    def element_name(model)
+      model.storage_name(self.name).singularize
+    end
+
     def create(resources)
       resources.each do |resource|
         model = resource.model
 
-        response = connection.http_post("#{resource_name(model)}", :payload => resource.to_json)
+        response = connection.http_post("#{resource_name(model)}", :payload => { element_name(model) => resource.attributes }.to_json)
 
         update_with_response(resource, response)
       end
