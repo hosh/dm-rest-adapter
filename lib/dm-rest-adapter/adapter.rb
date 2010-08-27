@@ -82,7 +82,7 @@ module DataMapperRest
         id    = key.get(resource).join
 
         response = connection.http_delete("#{resource_name(model)}/#{id}")
-        response.kind_of?(Net::HTTPSuccess)
+        response.success?
       end.size
     end
 
@@ -137,7 +137,7 @@ module DataMapperRest
     end
 
     def update_with_response(resource, response)
-      return unless response.kind_of?(Net::HTTPSuccess) && !response.body.blank?
+      return unless response.success? && !response.body.blank?
 
       model      = resource.model
       properties = model.properties(name)
