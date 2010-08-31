@@ -1,128 +1,73 @@
 require 'spec_helper'
 
-describe 'A Connection instance' do
+describe DataMapperRest::Connection do
+  subject { connection }
+  let(:connection) { DataMapperRest::Connection.new({ :site_uri => uri, :format => :json}) }
+  let(:username) { 'admin' }
+  let(:password) { 'password' }
+  let(:host) { 'example.org' }
+  let(:uri) { 
+    Addressable::URI.new(
+      :scheme => 'http',
+      :user => username,
+      :password => password,
+      :host => host,
+      :port => '4000',
+      :query => nil ) }
 
-  before do
-    @username = "admin"
-    @password = "tot@ls3crit"
-    @uri = Addressable::URI.new(
-      :scheme   => 'http',
-      :user     => @username,
-      :password => @password,
-      :host     => 'localhost',
-      :port     => '4000',
-      :query    => nil
-    )
-    @connection = DataMapperRest::Connection.new(@uri, "xml")
+  context 'when constructing a valid uri' do
+    subject { connection.site_uri }
+    let(:connection_site_uri) { subject.to_s }
+    let(:connection_host) { subject.host }
+    let(:connection_user) { subject.user }
+    let(:connection_password) { subject.password }
+    
+    it { connection_site_uri.should eql("http://#{username}:#{password}@#{host}:4000") }
+    it { connection_host.should eql(host) }
+    it { connection_user.should eql(username) }
+    it { connection_password.should eql(password) }
   end
 
-  it "should construct a valid uri" do
-    @connection.uri.to_s.should == "http://#{@username}:#{@password}@localhost:4000"
-    @connection.uri.host.should == "localhost"
-    @connection.uri.port.should == 4000
-    @connection.uri.user.should == @username
-    @connection.uri.password.should == @password
+  pending "should return the correct extension and mime type for xml" do
+    connection.format.header.should eql({'Content-Type' => "application/xml"})
   end
 
-  it "should return the correct extension and mime type for xml" do
-    @connection.format.header.should == {'Content-Type' => "application/xml"}
-  end
-
-  it "should return the correct extension and mime type for json" do
-    connection = DataMapperRest::Connection.new(@uri, "json")
+  pending "should return the correct extension and mime type for json" do
     connection.format.header.should == {'Content-Type' => "application/json"}
   end
 
-  describe 'when running the verb methods' do
-
-    it 'should make an HTTP Post' do
-      @connection.should_receive(:run_verb).with("post", "<somexml>")
-      @connection.http_post("foobars", "<somexml>")
+  context 'when handling HTTP verbs' do
+    %w(head get post put delete).each do |verb|
+      it "should respond to http_#{verb}" do
+        connection.should respond_to("http_#{verb}")
+      end
     end
-
-    it 'should make an HTTP Get' do
-      @connection.should_receive(:run_verb).with("get", "<somexml>")
-      @connection.http_get("foobars", "<somexml>")
-    end
-
-    it 'should make an HTTP Put' do
-      @connection.should_receive(:run_verb).with("put", "<somexml>")
-      @connection.http_put("foobars", "<somexml>")
-    end
-
-    it 'should make an HTTP Delete' do
-      @connection.should_receive(:run_verb).with("delete", "<somexml>")
-      @connection.http_delete("foobars", "<somexml>")
-    end
-
-    it "should only accept the listed verbs" do
-      @connection.should_not_receive(:run_verb).with("delete", "<somexml>")
-      @connection.http_explode("foobars", "<somexml>")
-    end
-
   end
 
-  describe "when receiving error response codes" do
+  context "when receiving error response codes" do
+    let(:request) { Typhoeus::Request.new(uri.to_s) }
+    let(:hydra) { Typhoeus::Hydra.hydra } # Need to make a non-singleton hydra queue in the connection
 
-    before do
-      @mock_http = mock("http")
-      Net::HTTP.should_receive(:start).with(@connection.uri.host, @connection.uri.port).and_yield @mock_http
-      @mock_resp = mock("response")
-      @mock_resp.stub!(:body).and_return ""
+    def self.expects_exception_on(status_code, exception)
+      it "should raise exception #{exception} on #{status_code}" do
+        _response = Typhoeus::Response.new(:code => status_code, :headers => '', :body => exception.to_s, :time => 0.1)
+         hydra.clear_stubs
+         hydra.stub(:post, (uri + '/').to_s).and_return(_response)
+        lambda {
+          connection.http_post('/', :payload => { :foo => :bar }.to_json )
+        }.should raise_error(exception)
+      end
     end
 
-    it "should raise 404" do
-      @mock_http.should_receive(:request).and_return Net::HTTPResponse.new(1, 404, "oops")
-      lambda {@connection.http_post("foobars", "<somexml>")}.should raise_error(DataMapperRest::ResourceNotFound, "Resource action failed with code: 404, message: oops")
-    end
+    expects_exception_on(301, DataMapperRest::Redirection)
 
-    it "should redirect on 301" do
-      @mock_http.should_receive(:request).and_return Net::HTTPResponse.new(1, 301, "moved")
-      lambda {@connection.http_post("foobars", "<somexml>")}.should raise_error(DataMapperRest::Redirection, "Resource action failed with code: 301, message: moved")
-    end
+    expects_exception_on(401, DataMapperRest::ClientError)
+    expects_exception_on(400, DataMapperRest::BadRequest)
+    expects_exception_on(404, DataMapperRest::ResourceNotFound)
+    expects_exception_on(405, DataMapperRest::MethodNotAllowed)
+    expects_exception_on(409, DataMapperRest::ResourceConflict)
+    expects_exception_on(422, DataMapperRest::ResourceInvalid)
 
-    it "should redirect on 302" do
-      @mock_http.should_receive(:request).and_return Net::HTTPResponse.new(1, 302, "moved")
-      lambda {@connection.http_post("foobars", "<somexml>")}.should raise_error(DataMapperRest::Redirection, "Resource action failed with code: 302, message: moved")
-    end
-
-    it "should raise bad request on 400" do
-      @mock_http.should_receive(:request).and_return Net::HTTPResponse.new(1, 400, "bad mojo")
-
-      lambda {@connection.http_post("foobars", "<somexml>")}.should raise_error(DataMapperRest::BadRequest, "Resource action failed with code: 400, message: bad mojo")
-    end
-
-    it "should raise MethodNotAllowed on 405" do
-      @mock_http.should_receive(:request).and_return Net::HTTPResponse.new(1, 405, "nope zero")
-
-      lambda {@connection.http_post("foobars", "<somexml>")}.should raise_error(DataMapperRest::MethodNotAllowed, "Resource action failed with code: 405, message: nope zero")
-    end
-
-    it "should raise ResourceConflict on 409" do
-      @mock_http.should_receive(:request).and_return Net::HTTPResponse.new(1, 409, "should I stay or should I go")
-
-      lambda {@connection.http_post("foobars", "<somexml>")}.should raise_error(DataMapperRest::ResourceConflict, "Resource action failed with code: 409, message: should I stay or should I go")
-    end
-
-    it "should raise ResourceInvalid on 422" do
-      @mock_resp.should_receive(:code).twice.and_return 422
-      @mock_resp.should_receive(:message).and_return "WTF"
-      @mock_http.should_receive(:request).and_return @mock_resp
-
-      lambda {@connection.http_post("foobars", "<somexml>")}.should raise_error(DataMapperRest::ResourceInvalid, "Resource action failed with code: 422, message: WTF")
-    end
-
-    it "should raise ClientError on 401" do
-      @mock_http.should_receive(:request).and_return Net::HTTPResponse.new(1, 401, "no idea")
-
-      lambda {@connection.http_post("foobars", "<somexml>")}.should raise_error(DataMapperRest::ClientError, "Resource action failed with code: 401, message: no idea")
-    end
-
-    it "should raise ServerError on 500" do
-      @mock_http.should_receive(:request).and_return Net::HTTPResponse.new(1, 500, "I broken")
-
-      lambda {@connection.http_post("foobars", "<somexml>")}.should raise_error(DataMapperRest::ServerError, "Resource action failed with code: 500, message: I broken")
-    end
-
+    expects_exception_on(500, DataMapperRest::ServerError)
   end
 end

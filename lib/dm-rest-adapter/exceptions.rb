@@ -9,7 +9,7 @@ module DataMapperRest
     end
 
     def to_s
-      "Resource action failed with code: #{response.code}, message: #{response.message if response.respond_to?(:message)}"
+      "Resource action failed with code: #{response.code}, message: #{response.body if response.respond_to?(:body)}"
     end
   end
 
@@ -23,7 +23,7 @@ module DataMapperRest
 
   # 3xx Redirection
   class Redirection < ConnectionError # :nodoc:
-    def to_s; response['Location'] ? "#{super} => #{response['Location']}" : super; end
+    def to_s; response.headers['Location'] ? "#{super} => #{response.headers['Location']}" : super; end
   end
 
   # 4xx Client Error
