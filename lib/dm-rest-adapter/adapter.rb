@@ -1,8 +1,7 @@
 module DataMapperRest
   class Adapter < DataMapper::Adapters::AbstractAdapter
     # TODO: Refactor better
-    JSON_PARSER = proc do |body, model|
-      element_name = model.storage_name(self.name).singularize
+    JSON_PARSER = proc do |body, model, element_name|
       field_to_property = model.properties(name).map { |p| [ p.field, p ] }.to_hash
       raw_record = Yajl::Parser.parse(body)
 
@@ -15,8 +14,7 @@ module DataMapperRest
       record
     end
 
-    MULTI_JSON_PARSER = proc do |body, model|
-      element_name = model.storage_name(self.name).singularize
+    MULTI_JSON_PARSER = proc do |body, model, element_name|
       field_to_property = model.properties(name).map { |p| [ p.field, p ] }.to_hash
       raw_records = Yajl::Parser.parse(body)
 
@@ -52,10 +50,10 @@ module DataMapperRest
 
       records = if id = extract_id_from_query(query)
         response = connection.http_get("#{resource_name(model)}/#{id}")
-        [ JSON_PARSER.call(response.body, model) ]
+        [ JSON_PARSER.call(response.body, model, element_name(model)) ]
       else
         response = connection.http_get(resource_name(model), :params => extract_params_from_query(query))
-        MULTI_JSON_PARSER.call(response.body, model)
+        MULTI_JSON_PARSER.call(response.body, model, element_name(model))
       end
 
       query.filter_records(records)
@@ -93,7 +91,7 @@ module DataMapperRest
     end
 
     def connection
-      @connection ||= Connection.new(:site_uri => site_uri, :format => format)
+      @connection ||= DataMapperRest::Connection.new(:site_uri => site_uri, :format => format)
     end
 
     def connection_options
@@ -101,11 +99,19 @@ module DataMapperRest
     end
 
     def site_uri
-      @site_uri ||=
-        begin
-          site_uri = @options[:site_uri]
-          Addressable::URI.parse(site_uri).freeze
-        end
+      @site_uri ||= if @options[:site_uri]
+                      Addressable::URI.parse(@options[:site_uri]).freeze
+                    else
+                      Addressable::URI.new(
+                        :scheme       => (ssl? ? 'https' : 'http'),
+                        :user         => @options[:user],
+                        :password     => @options[:password],
+                        :host         => @options[:host],
+                        :port         => @options[:port],
+                        :path         => @options[:path],
+                        :fragment     => @options[:fragment]
+                      ).freeze
+                    end
     end
 
     def ssl?
@@ -142,7 +148,7 @@ module DataMapperRest
       model      = resource.model
       properties = model.properties(name)
 
-      JSON_PARSER.call(response.body, model).each do |key, value|
+      JSON_PARSER.call(response.body, model, element_name(model)).each do |key, value|
         if property = properties[key.to_sym]
           property.set!(resource, value)
         end

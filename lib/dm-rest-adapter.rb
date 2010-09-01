@@ -1,5 +1,3 @@
-require 'rexml/document'
-
 require 'cgi'  # for CGI.escape
 require 'addressable/uri'
 
