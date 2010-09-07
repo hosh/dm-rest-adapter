@@ -38,6 +38,8 @@ module DataMapperRest
         request.merge!(:body => options[:payload])
       else
       end
+      #{ :site_uri => site_uri, :path => path, :request_uri => (site_uri + path).to_s, :request => request, 
+      #  :stubs => Typhoeus::Hydra.hydra.instance_variable_get(:@stubs) }.tap { |h| ap h }
 
       handle_response(Typhoeus::Request.run((site_uri + path).to_s, request))
     end

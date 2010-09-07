@@ -1,5 +1,16 @@
 require 'spec_helper'
 require 'yajl'
+require 'active_support/core_ext/hash/indifferent_access'
+require 'active_support/core_ext/hash/keys'
+
+# Brute force stubbing
+module Typhoeus
+  class HydraMock
+    def matches?(request)
+      true
+    end
+  end
+end
 
 describe DataMapper::Adapters::RestAdapter do
 
@@ -14,12 +25,14 @@ describe DataMapper::Adapters::RestAdapter do
   let(:hydra) { Typhoeus::Hydra.hydra }
 
   let(:resource) { ::Resource.new(resource_attributes) }
-  let(:resource_attributes) { { :name => 'Name' } }
-  let(:existing_resource_attributes) { resource_attributes.merge({:id => resource_id }) }
+  let(:resource_attributes) { { :name => 'Name' }.stringify_keys }
+  let(:existing_resource_attributes) { resource_attributes.merge({:id => resource_id }).stringify_keys }
   let(:resources) { [ resource ] }
   let(:resource_id) { 1 }
 
-  let(:stub_url) { 'http://example.org:9999/resources' }
+  let(:collection_url) { 'http://example.org:9999/resources' }
+  let(:resource_url) { 'http://example.org:9999/resources/1' }
+  let(:stub_url) { collection_url }
   let(:stub_method) { :get }
   let(:stubbed_response_code) { 200 }
   let(:stubbed_response_headers) { Hash.new }
@@ -47,12 +60,12 @@ describe DataMapper::Adapters::RestAdapter do
     end
   end
 
-  pending '#read' do
-    let(:collection) { [ existing_resource_attributes ] }
+  describe '#read' do
+    let(:collection) { [ { :resource => existing_resource_attributes }.with_indifferent_access ] }
     let(:respond_with) { collection }
     let(:response) { stubbed_hydra; adapter.read(query) }
 
-    describe 'with unscoped query' do
+    context 'with unscoped query' do
       let(:query) { Resource.all.query }
 
       it 'should return an array with the matching records' do
@@ -60,24 +73,27 @@ describe DataMapper::Adapters::RestAdapter do
       end
     end
 
-    describe 'with query scoped by a key' do
-      let(:query) { Resource.all(:id => 1, :limit =>1).query }
+    context 'with query scoped by a key' do
+      let(:stub_url) { resource_url }
+      let(:respond_with) { { :resource => existing_resource_attributes } }
+      let(:query) { Resource.all(:id => 1, :limit => 1 ).query }
 
       it 'should return an array with the matching records' do
         response.should eql([ existing_resource_attributes ])
       end
     end
 
-    describe 'with query scoped by a non-key' do
-      let(:collection) { [ existing_resource_attributes, { :id => 2, :name => 'Someone Else' } ] }
-      let(:query) { Resource.all(:name => 'Name') }
+    context 'with query scoped by a non-key' do
+      let(:collection) { [ { :resource => existing_resource_attributes }, 
+        { :resource => { :id => 2, :name => 'Someone Else' }.stringify_keys } ].map(&:stringify_keys) }
+      let(:query) { Resource.all(:name => 'Name').query }
 
       it 'should return an array with the matching records' do
         response.should eql([ existing_resource_attributes ])
       end
     end
 
-    describe 'with a non-standard model <=> storage_name relationship' do
+    context 'with a non-standard model <=> storage_name relationship' do
       let(:query) { NonStandardResource.all.query }
 
       it 'should return an array with the matching records' do
