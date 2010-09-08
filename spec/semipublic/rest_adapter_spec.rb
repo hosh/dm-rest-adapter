@@ -137,14 +137,11 @@ describe DataMapper::Adapters::RestAdapter do
   end
 
   describe '#delete' do
-    let(:collection) { [ existing_resource_attributes ] }
-    let(:stubbed_hydra) { hydra.clear_stubs; hydra.stub(:delete, url).and_return(stubbed_response) }
-    let(:stubbed_response) { Typhoeus::Response.new(:code => 204, :headers => headers, :body => Yajl::Encoder.encode(collection)) }
-    let(:response) { stubbed_response; adapter.delete(resources) }
-    let(:resources) { Resource.all }
+    let(:response) { stubbed_hydra; adapter.delete(resources) }
+    let(:resources) { Resource.load([ existing_resource_attributes ], Resource.all.query ) }
 
-    pending 'should return the number of updated Resources' do
-      response.should == 1
+    it 'should return the number of updated Resources' do
+      response.should eql(1)
     end
   end
 end
