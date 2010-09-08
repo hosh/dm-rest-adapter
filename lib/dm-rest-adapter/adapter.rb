@@ -1,3 +1,11 @@
+require 'active_support/core_ext/hash/keys'
+
+class DataMapper::Property
+  def to_sym
+    self.name
+  end
+end
+
 module DataMapperRest
   class Adapter < DataMapper::Adapters::AbstractAdapter
     # TODO: Refactor better
@@ -5,7 +13,10 @@ module DataMapperRest
       field_to_property = model.properties(name).map { |p| [ p.field, p ] }.to_hash
       raw_record = Yajl::Parser.parse(body)
 
+      return nil unless raw_record.kind_of?(Hash)
+
       record = {}
+      raise "Unable to find element name: #{raw_record.inspect}" unless raw_record[element_name]
       raw_record[element_name].each do |field, value|
         # TODO: push this to the per-property mix-in for this adapter
         next unless property = field_to_property[field]
@@ -29,10 +40,6 @@ module DataMapperRest
         records << record
       end
       records
-    end
-
-    def element_name(model)
-      model.storage_name(self.name).singularize
     end
 
     def create(resources)
@@ -60,14 +67,15 @@ module DataMapperRest
     end
 
     def update(dirty_attributes, collection)
+      updated_attributes = dirty_attributes.symbolize_keys
       collection.select do |resource|
         model = resource.model
         key   = model.key
         id    = key.get(resource).join
 
-        dirty_attributes.each { |p, v| p.set!(resource, v) }
 
-        response = connection.http_put("#{resource_name(model)}/#{id}", :payload => resource.to_xml)
+        response = connection.http_put("#{resource_name(model)}/#{id}", :payload => { element_name(model) => updated_attributes }.to_json)
+        dirty_attributes.each { |p, v| p.set!(resource, v) }
 
         update_with_response(resource, response)
       end.size
@@ -142,13 +150,20 @@ module DataMapperRest
       model.storage_name(self.name)
     end
 
+    def element_name(model)
+      resource_name(model).singularize
+    end
+
+
     def update_with_response(resource, response)
       return unless response.success? && !response.body.blank?
 
       model      = resource.model
       properties = model.properties(name)
 
-      JSON_PARSER.call(response.body, model, element_name(model)).each do |key, value|
+      updated_attributes = JSON_PARSER.call(response.body, model, element_name(model))
+      return if updated_attributes.blank?
+      updated_attributes.each do |key, value|
         if property = properties[key.to_sym]
           property.set!(resource, value)
         end

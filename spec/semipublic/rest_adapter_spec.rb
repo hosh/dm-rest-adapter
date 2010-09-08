@@ -22,6 +22,8 @@ describe DataMapper::Adapters::RestAdapter do
     #})
     DataMapper.setup(:default, 'rest://example.org:9999')
     DataMapper::Repository.adapters[:default] }
+  let(:repository) { DataMapper.repository(:default) }
+  let(:identity_map) { repository.identity_map(Resource) }
   let(:hydra) { Typhoeus::Hydra.hydra }
 
   let(:resource) { ::Resource.new(resource_attributes) }
@@ -103,18 +105,34 @@ describe DataMapper::Adapters::RestAdapter do
   end
 
   describe '#update' do
-    let(:collection) { [ existing_resource_attributes ] }
-    let(:stubbed_hydra) { hydra.clear_stubs; hydra.stub(:post, url).and_return(stubbed_response) }
-    let(:stubbed_response) { Typhoeus::Response.new(:code => 200, :headers => headers, :body => Yajl::Encoder.encode(collection)) }
-    let(:response) { stubbed_response; adapter.update({Resource.properties[:name] => 'Another Name'}, resources) }
-    let(:resources) { Resource.all }
+    let(:another_name) { 'John Doe' }
+    let(:response) { stubbed_hydra; adapter.update({Resource.properties[:name] => another_name}, resources) }
+    let(:resources) { Resource.load([ existing_resource_attributes ], Resource.all.query ) }
 
-    pending 'should return the number of updated Resources' do
-      response.should == 1
+    context 'when service does not return a json object' do
+      let(:respond_with) { '' }
+
+      it 'should return the number of updated Resources' do
+        response.should eql(0)
+      end
+
+      it 'should modify the Resource' do
+        response.should eql(0)
+        resources.first.name.should eql(another_name)
+      end
     end
 
-    pending 'should modify the Resource' do
-      resources.first.author.should == 'John Doe'
+    context 'when service returns a json object' do
+      let(:respond_with) { { 'resource' => existing_resource_attributes.merge(:name => another_name) } }
+
+      it 'should return the number of updated Resources' do
+        response.should eql(1)
+      end
+
+      it 'should modify the Resource' do
+        response.should eql(1)
+        resources.first.name.should eql(another_name)
+      end
     end
   end
 
