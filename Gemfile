@@ -39,8 +39,8 @@ DM_VERSION = '~> 1.0.0'
 
 group :runtime do # Runtime dependencies (as in the gemspec)
 
-  gem 'dm-core',         DM_VERSION, :git => "#{DATAMAPPER}/dm-core.git"
-  gem 'dm-serializer',   DM_VERSION, :git => "#{DATAMAPPER}/dm-serializer.git"
+  gem 'dm-core',         DM_VERSION #, :git => "#{DATAMAPPER}/dm-core.git"
+  gem 'dm-serializer',   DM_VERSION #, :git => "#{DATAMAPPER}/dm-serializer.git"
   gem 'typhoeus'
   gem 'yajl-ruby'
 
@@ -48,12 +48,13 @@ end
 
 group(:development) do # Development dependencies (as in the gemspec)
 
-  gem 'dm-validations',  DM_VERSION, :git => "#{DATAMAPPER}/dm-validations.git"
+  #gem 'dm-validations',  DM_VERSION #, :git => "#{DATAMAPPER}/dm-validations.git"
 
-  gem 'fakeweb',         '~> 1.2.8'
+  #gem 'fakeweb',         '~> 1.2.8'
   gem 'rake',            '~> 0.8.7'
-  gem 'rspec',           '~> 1.3', :git => 'git://github.com/snusnu/rspec', :branch => 'heckle_fix_plus_gemfile'
+  gem 'rspec',           '2.0.0.beta.20'
   gem 'jeweler',         '~> 1.4'
+  gem 'awesome_print',   :require => 'ap'
 
 end
 
@@ -62,14 +63,14 @@ group :datamapper do # We need this because we want to pin these dependencies to
   if ENV['EXTLIB']
     gem 'extlib',        '~> 0.9.15',      :git => "#{DATAMAPPER}/extlib.git", :require => nil
   else
-    gem 'activesupport', '~> 3.0.0.beta3', :git => 'git://github.com/rails/rails.git', :require => nil
+    gem 'activesupport', '~> 3.0.0' #, :git => 'git://github.com/rails/rails.git', :require => nil
   end
 
   plugins = ENV['PLUGINS'] || ENV['PLUGIN']
   plugins = plugins.to_s.tr(',', ' ').split(' ').uniq
 
   plugins.each do |plugin|
-    gem plugin, DM_VERSION, :git => "#{DATAMAPPER}/#{plugin}.git"
+    gem plugin, DM_VERSION #, :git => "#{DATAMAPPER}/#{plugin}.git"
   end
 
 end

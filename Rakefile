@@ -7,20 +7,18 @@ begin
 
   Jeweler::Tasks.new do |gem|
     gem.name        = 'dm-rest-adapter'
-    gem.summary     = 'REST Adapter for DataMapper'
+    gem.summary     = 'Typheous REST Adapter for DataMapper'
     gem.description = gem.summary
-    gem.email       = 'scott.burton [a] joyent [d] com'
+    gem.email       = 'hosh@sparkfly.com'
     gem.homepage    = 'http://github.com/datamapper/%s' % gem.name
-    gem.authors     = [ 'Scott Burton @ Joyent Inc' ]
+    gem.authors     = [ 'Ho-Sheng Hsiao @ Sparkfly', 'Scott Burton @ Joyent Inc' ]
 
     gem.rubyforge_project = 'datamapper'
 
     gem.add_dependency 'dm-core',       '~> 1.0.0'
-    gem.add_dependency 'dm-serializer', '~> 1.0.0'
+    gem.add_dependency 'activesupport', '~> 3.0.0'
 
-    gem.add_development_dependency 'rspec',          '~> 1.3'
-    gem.add_development_dependency 'dm-validations', '~> 1.0.0'
-    gem.add_development_dependency 'fakeweb',        '~> 1.2.7'
+    #gem.add_development_dependency 'rspec',          '>= 2.0.0.beta.20'
   end
 
   Jeweler::GemcutterTasks.new

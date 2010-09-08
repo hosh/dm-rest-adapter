@@ -5,6 +5,7 @@ require 'ap' # Debugging
 # Requires supporting files with custom matchers and macros, etc,
 # in ./support/ and its subdirectories.
 require 'dm-core'
+require 'rspec/core'
 
 Dir["#{File.dirname(__FILE__)}/support/**/*.rb"].each {|f| require f}
 
@@ -13,3 +14,4 @@ require 'dm-rest-adapter'
 Rspec.configure do |config|
   config.mock_with :rspec
 end
+
