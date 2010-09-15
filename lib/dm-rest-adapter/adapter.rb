@@ -46,7 +46,7 @@ module DataMapperRest
       resources.each do |resource|
         model = resource.model
 
-        response = connection.http_post("#{resource_name(model)}", :payload => { element_name(model) => resource.attributes }.to_json)
+        response = connection.http_post(collection_path(model), :payload => { element_name(model) => resource.attributes }.to_json)
 
         update_with_response(resource, response)
       end
@@ -56,10 +56,10 @@ module DataMapperRest
       model = query.model
 
       records = if id = extract_id_from_query(query)
-        response = connection.http_get("#{resource_name(model)}/#{id}")
+        response = connection.http_get(resource_path(model, id))
         [ JSON_PARSER.call(response.body, model, element_name(model)) ]
       else
-        response = connection.http_get(resource_name(model), :params => extract_params_from_query(query))
+        response = connection.http_get(collection_path(model), :params => extract_params_from_query(query))
         MULTI_JSON_PARSER.call(response.body, model, element_name(model))
       end
 
@@ -73,8 +73,7 @@ module DataMapperRest
         key   = model.key
         id    = key.get(resource).join
 
-
-        response = connection.http_put("#{resource_name(model)}/#{id}", :payload => { element_name(model) => updated_attributes }.to_json)
+        response = connection.http_put(resource_path(model, id), :payload => { element_name(model) => updated_attributes }.to_json)
         dirty_attributes.each { |p, v| p.set!(resource, v) }
 
         update_with_response(resource, response)
@@ -87,12 +86,20 @@ module DataMapperRest
         key   = model.key
         id    = key.get(resource).join
 
-        response = connection.http_delete("#{resource_name(model)}/#{id}")
+        response = connection.http_delete(resource_path(model, id))
         response.success?
       end.size
     end
 
     private
+
+    def collection_path(model, key = nil)
+      "#{resource_name(model)}/"
+    end
+
+    def resource_path(model, key)
+      "#{resource_name(model)}/#{key}"
+    end
 
     def format
       @format = @options.fetch(:format, 'json')
