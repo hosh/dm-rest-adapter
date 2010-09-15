@@ -71,7 +71,7 @@ module DataMapperRest
       collection.select do |resource|
         model = resource.model
         key   = model.key
-        id    = key.get(resource).join
+        id    = key.get(resource)
 
         response = connection.http_put(resource_path(model, id), :payload => { element_name(model) => updated_attributes }.to_json)
         dirty_attributes.each { |p, v| p.set!(resource, v) }
@@ -84,7 +84,7 @@ module DataMapperRest
       collection.select do |resource|
         model = resource.model
         key   = model.key
-        id    = key.get(resource).join
+        id    = key.get(resource)
 
         response = connection.http_delete(resource_path(model, id))
         response.success?
@@ -93,12 +93,14 @@ module DataMapperRest
 
     private
 
-    def collection_path(model, key = nil)
-      "#{resource_name(model)}/"
+    def collection_path(model, key = [] )
+      ap [:collection_path, model, key]
+      resource_name(model).zip(key).join('/')
     end
 
     def resource_path(model, key)
-      "#{resource_name(model)}/#{key}"
+      ap [:resource_path, model, key]
+      resource_name(model).zip(key).join('/')
     end
 
     def format
@@ -133,15 +135,33 @@ module DataMapperRest
       @ssl ||= @options.fetch(:ssl, false)
     end
 
+    # Here, the primary key may be more than one, depending on what we have
+    # in storage_name.
+    # Normally:
+    #   storage_name(:default) # returns => 'resource'
+    #
+    # But if we want to declare a nested resource:
+    #   storage_name(:default) # returns => [ 'parent_resource', 'resource' ]
+    #
+    # Naturally, composite primary key will have to match up.
     def extract_id_from_query(query)
       return nil unless query.limit == 1
 
       conditions = query.conditions
 
-      return nil unless conditions.kind_of?(DataMapper::Query::Conditions::AndOperation)
-      return nil unless (key_condition = conditions.select { |o| o.subject.key? }).size == 1
+      # TODO: Refactor
+      _resource_name = resource_name(query.model)
 
-      key_condition.first.value
+      ap [:resource_name, _resource_name]
+
+      return nil unless conditions.kind_of?(DataMapper::Query::Conditions::AndOperation)
+      return nil unless (key_condition = conditions.select { |o| o.subject.key? }).size == _resource_name.size
+
+      if _resource_name.size == 1
+        [ key_condition.first.value ]
+      else
+        key_condition[0..(_resource_name.size - 1)].map(&:value)
+      end
     end
 
     def extract_params_from_query(query)
@@ -154,11 +174,13 @@ module DataMapperRest
     end
 
     def resource_name(model)
-      model.storage_name(self.name)
+      _name = model.storage_name(self.name)
+      return [ _name ] unless _name.is_a?(Array)
+      return _name
     end
 
     def element_name(model)
-      resource_name(model).singularize
+      resource_name(model).last.singularize
     end
 
 
