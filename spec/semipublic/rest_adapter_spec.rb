@@ -295,6 +295,11 @@ describe DataMapper::Adapters::RestAdapter do
           end
         end
 
+        context 'when querying by composite primary key, no limit' do
+          let(:query) { NestedResource.all(:id => 1, :parent_id => 2).query }
+          it { should be_nil }
+        end
+
         context 'when querying by parent key, limit 1' do
           let(:query) { NestedResource.all(:parent_id => 1, :limit => 1).query }
           it { should be_nil }
@@ -302,6 +307,11 @@ describe DataMapper::Adapters::RestAdapter do
 
         context 'when querying by id, limit 1' do
           let(:query) { NestedResource.all(:id => 1, :limit => 1).query }
+          it { should be_nil }
+        end
+
+        context 'when querying by non-composite keys, limit 1' do
+          let(:query) { NestedResource.all(:parent_id => 1, :name => 'blah', :limit => 1).query }
           it { should be_nil }
         end
       end
