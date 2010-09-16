@@ -53,12 +53,24 @@ describe DataMapper::Adapters::RestAdapter do
     let(:respond_with) { { :resource => existing_resource_attributes } }
     let(:response) { stubbed_hydra; adapter.create(resources) }
     
-    it 'should return an Array containing the Resource' do
-      response.should eql(resources)
+    context 'with a top-level resource' do
+      it 'should return an Array containing the Resource' do
+        response.should eql(resources)
+      end
+
+      it 'should set the identity field' do
+        response.first.id.should eql(resource_id)
+      end
     end
 
-    it 'should set the identity field' do
-      response.first.id.should eql(resource_id)
+    pending 'with a nested resource' do
+      it 'should return an Array containing the Resource' do
+        response.should eql(resources)
+      end
+
+      it 'should set the identity field' do
+        response.first.id.should eql(resource_id)
+      end
     end
   end
 
@@ -67,39 +79,79 @@ describe DataMapper::Adapters::RestAdapter do
     let(:respond_with) { collection }
     let(:response) { stubbed_hydra; adapter.read(query) }
 
-    context 'with unscoped query' do
-      let(:query) { Resource.all.query }
+    context 'with a top-level resource' do
+      context 'with unscoped query' do
+        let(:query) { Resource.all.query }
 
-      it 'should return an array with the matching records' do
-        response.should eql([ existing_resource_attributes ])
+        it 'should return an array with the matching records' do
+          response.should eql([ existing_resource_attributes ])
+        end
+      end
+
+      context 'with query scoped by a key' do
+        let(:stub_url) { resource_url }
+        let(:respond_with) { { :resource => existing_resource_attributes } }
+        let(:query) { Resource.all(:id => 1, :limit => 1 ).query }
+
+        it 'should return an array with the matching records' do
+          response.should eql([ existing_resource_attributes ])
+        end
+      end
+
+      context 'with query scoped by a non-key' do
+        let(:collection) { [ { :resource => existing_resource_attributes }, 
+          { :resource => { :id => 2, :name => 'Someone Else' }.stringify_keys } ].map(&:stringify_keys) }
+        let(:query) { Resource.all(:name => 'Name').query }
+
+        it 'should return an array with the matching records' do
+          response.should eql([ existing_resource_attributes ])
+        end
+      end
+
+      context 'with a non-standard model <=> storage_name relationship' do
+        let(:query) { NonStandardResource.all.query }
+
+        it 'should return an array with the matching records' do
+          response.should eql([ existing_resource_attributes ])
+        end
       end
     end
+  
+    pending 'with a nested resource' do
+      context 'with unscoped query' do
+        let(:query) { Resource.all.query }
 
-    context 'with query scoped by a key' do
-      let(:stub_url) { resource_url }
-      let(:respond_with) { { :resource => existing_resource_attributes } }
-      let(:query) { Resource.all(:id => 1, :limit => 1 ).query }
-
-      it 'should return an array with the matching records' do
-        response.should eql([ existing_resource_attributes ])
+        it 'should return an array with the matching records' do
+          response.should eql([ existing_resource_attributes ])
+        end
       end
-    end
 
-    context 'with query scoped by a non-key' do
-      let(:collection) { [ { :resource => existing_resource_attributes }, 
-        { :resource => { :id => 2, :name => 'Someone Else' }.stringify_keys } ].map(&:stringify_keys) }
-      let(:query) { Resource.all(:name => 'Name').query }
+      context 'with query scoped by a key' do
+        let(:stub_url) { resource_url }
+        let(:respond_with) { { :resource => existing_resource_attributes } }
+        let(:query) { Resource.all(:id => 1, :limit => 1 ).query }
 
-      it 'should return an array with the matching records' do
-        response.should eql([ existing_resource_attributes ])
+        it 'should return an array with the matching records' do
+          response.should eql([ existing_resource_attributes ])
+        end
       end
-    end
 
-    context 'with a non-standard model <=> storage_name relationship' do
-      let(:query) { NonStandardResource.all.query }
+      context 'with query scoped by a non-key' do
+        let(:collection) { [ { :resource => existing_resource_attributes }, 
+          { :resource => { :id => 2, :name => 'Someone Else' }.stringify_keys } ].map(&:stringify_keys) }
+        let(:query) { Resource.all(:name => 'Name').query }
 
-      it 'should return an array with the matching records' do
-        response.should eql([ existing_resource_attributes ])
+        it 'should return an array with the matching records' do
+          response.should eql([ existing_resource_attributes ])
+        end
+      end
+
+      context 'with a non-standard model <=> storage_name relationship' do
+        let(:query) { NonStandardResource.all.query }
+
+        it 'should return an array with the matching records' do
+          response.should eql([ existing_resource_attributes ])
+        end
       end
     end
   end
@@ -109,39 +161,95 @@ describe DataMapper::Adapters::RestAdapter do
     let(:response) { stubbed_hydra; adapter.update({Resource.properties[:name] => another_name}, resources) }
     let(:resources) { Resource.load([ existing_resource_attributes ], Resource.all.query ) }
 
-    context 'when service does not return a json object' do
-      let(:respond_with) { '' }
+    context 'with a top-level resource' do
+      context 'when service does not return a json object' do
+        let(:respond_with) { '' }
 
-      it 'should return the number of updated Resources' do
-        response.should eql(0)
+        it 'should return the number of updated Resources' do
+          response.should eql(0)
+        end
+
+        it 'should modify the Resource' do
+          response.should eql(0)
+          resources.first.name.should eql(another_name)
+        end
       end
 
-      it 'should modify the Resource' do
-        response.should eql(0)
-        resources.first.name.should eql(another_name)
+      context 'when service returns a json object' do
+        let(:respond_with) { { 'resource' => existing_resource_attributes.merge(:name => another_name) } }
+
+        it 'should return the number of updated Resources' do
+          response.should eql(1)
+        end
+
+        it 'should modify the Resource' do
+          response.should eql(1)
+          resources.first.name.should eql(another_name)
+        end
       end
     end
 
-    context 'when service returns a json object' do
-      let(:respond_with) { { 'resource' => existing_resource_attributes.merge(:name => another_name) } }
+    pending 'with a nested resource' do
+      context 'when service does not return a json object' do
+        let(:respond_with) { '' }
 
-      it 'should return the number of updated Resources' do
-        response.should eql(1)
+        it 'should return the number of updated Resources' do
+          response.should eql(0)
+        end
+
+        it 'should modify the Resource' do
+          response.should eql(0)
+          resources.first.name.should eql(another_name)
+        end
       end
 
-      it 'should modify the Resource' do
-        response.should eql(1)
-        resources.first.name.should eql(another_name)
+      context 'when service returns a json object' do
+        let(:respond_with) { { 'resource' => existing_resource_attributes.merge(:name => another_name) } }
+
+        it 'should return the number of updated Resources' do
+          response.should eql(1)
+        end
+
+        it 'should modify the Resource' do
+          response.should eql(1)
+          resources.first.name.should eql(another_name)
+        end
       end
     end
+
   end
 
   describe '#delete' do
     let(:response) { stubbed_hydra; adapter.delete(resources) }
     let(:resources) { Resource.load([ existing_resource_attributes ], Resource.all.query ) }
 
-    it 'should return the number of updated Resources' do
-      response.should eql(1)
+    context 'with a top-level resource' do 
+      it 'should return the number of updated Resources' do
+        response.should eql(1)
+      end
+    end
+
+    pending 'with a nested resource' do
+      it 'should return the number of updated Resources' do
+        response.should eql(1)
+      end
+    end
+  end
+
+  context 'private API' do
+    describe '#collection_path' do
+      it 'should generate a collection path for a resource'
+      it 'should generate a nested collection path for a nested resource'
+    end
+
+    describe '#resource_path' do
+      it 'should generate resource path for resource with a primary key'
+      it 'should generate a nested resource path for a resource with a composite primary key'
+    end
+
+    describe '#extract_id_from_query' do
+      it 'should extract the primary key from a resource'
+      it 'should extract the composite primary key from a nested resource'
     end
   end
 end
