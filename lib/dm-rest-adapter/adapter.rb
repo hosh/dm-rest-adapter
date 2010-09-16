@@ -94,12 +94,10 @@ module DataMapperRest
     private
 
     def collection_path(model, key = [] )
-      ap [:collection_path, model, key]
       resource_name(model).zip(key).join('/')
     end
 
     def resource_path(model, key)
-      ap [:resource_path, model, key]
       resource_name(model).zip(key).join('/')
     end
 
@@ -151,8 +149,6 @@ module DataMapperRest
 
       # TODO: Refactor
       _resource_name = resource_name(query.model)
-
-      ap [:resource_name, _resource_name]
 
       return nil unless conditions.kind_of?(DataMapper::Query::Conditions::AndOperation)
       return nil unless (key_condition = conditions.select { |o| o.subject.key? }).size == _resource_name.size
