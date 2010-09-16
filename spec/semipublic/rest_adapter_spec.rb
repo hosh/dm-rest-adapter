@@ -276,7 +276,11 @@ describe DataMapper::Adapters::RestAdapter do
       end
 
       context 'with a nested resource' do
-        it 'should extract the composite primary key from a nested resource'
+        let(:query) { NestedResource.all(:id => 1, :parent_id => 2, :limit => 1).query }
+
+        it 'should extract the composite primary key from a nested resource' do
+          should eql([2,1])
+        end
       end
     end
   end
