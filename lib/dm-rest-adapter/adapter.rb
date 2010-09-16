@@ -142,6 +142,14 @@ module DataMapperRest
     #   storage_name(:default) # returns => [ 'parent_resource', 'resource' ]
     #
     # Naturally, composite primary key will have to match up.
+    #
+    # TODO: REFACTOR
+    # This and extract_param_from_query needs to be refactored in light of composite keys
+    # I mean, shouldn't this just return all keys from the query? And if so, we cannot
+    # really depend on this returning nil to know whether we should parse out the returned
+    # resource as an array of resources or not. That ties in with finishing the refactoring
+    # with multiple formats. There needs to be both a parsing phase, and a phase that
+    # actually walks the tree and maps values to model instances.
     def extract_id_from_query(query)
       return nil unless query.limit == 1
 
