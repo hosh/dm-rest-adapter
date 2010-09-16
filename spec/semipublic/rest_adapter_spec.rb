@@ -243,8 +243,20 @@ describe DataMapper::Adapters::RestAdapter do
     end
 
     describe '#resource_path' do
-      it 'should generate resource path for resource with a primary key'
-      it 'should generate a nested resource path for a resource with a composite primary key'
+      let(:resource_path) { adapter.send(:resource_path, model, key) }
+
+      context 'with a top-level resource' do
+        let (:model) { ::Resource }
+        let (:key) { [ 1 ] }
+
+        it 'should generate resource path for resource with a primary key' do
+          resource_path.should eql("resources/1")
+        end
+      end
+
+      context 'with a nested resource' do
+        it 'should generate a nested resource path for a resource with a composite primary key'
+      end
     end
 
     describe '#extract_id_from_query' do
