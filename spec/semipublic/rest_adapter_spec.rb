@@ -268,10 +268,20 @@ describe DataMapper::Adapters::RestAdapter do
       subject { adapter.send(:extract_id_from_query, query) }
 
       context 'with a top-level resource' do
-        let(:query) { Resource.all(:id => 1, :limit => 1).query }
+        context 'when querying by primary key, limit 1' do
+          let(:query) { Resource.all(:id => 1, :limit => 1).query }
 
-        it 'should extract the primary key from a resource' do
-          should eql([1])
+          it 'should extract the primary key from a resource' do
+            should eql([1])
+          end
+        end
+
+        context 'when querying by primary key, no limit' do
+          let(:query) { Resource.all(:id => 1).query }
+
+          it 'should return nil' do
+             should be_nil
+          end
         end
       end
 
