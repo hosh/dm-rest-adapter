@@ -299,6 +299,11 @@ describe DataMapper::Adapters::RestAdapter do
           let(:query) { NestedResource.all(:parent_id => 1, :limit => 1).query }
           it { should be_nil }
         end
+
+        context 'when querying by id, limit 1' do
+          let(:query) { NestedResource.all(:id => 1, :limit => 1).query }
+          it { should be_nil }
+        end
       end
     end
   end
