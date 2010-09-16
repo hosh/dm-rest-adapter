@@ -278,10 +278,12 @@ describe DataMapper::Adapters::RestAdapter do
 
         context 'when querying by primary key, no limit' do
           let(:query) { Resource.all(:id => 1).query }
+          it { should be_nil }
+        end
 
-          it 'should return nil' do
-             should be_nil
-          end
+        context 'when querying by multiple keys, limit 1' do
+          let(:query) { Resource.all(:id => 1, :name => 'example' ).query }
+          it { should be_nil }
         end
       end
 
