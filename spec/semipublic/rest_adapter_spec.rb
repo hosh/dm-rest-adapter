@@ -265,8 +265,19 @@ describe DataMapper::Adapters::RestAdapter do
     end
 
     describe '#extract_id_from_query' do
-      it 'should extract the primary key from a resource'
-      it 'should extract the composite primary key from a nested resource'
+      subject { adapter.send(:extract_id_from_query, query) }
+
+      context 'with a top-level resource' do
+        let(:query) { Resource.all(:id => 1, :limit => 1).query }
+
+        it 'should extract the primary key from a resource' do
+          should eql([1])
+        end
+      end
+
+      context 'with a nested resource' do
+        it 'should extract the composite primary key from a nested resource'
+      end
     end
   end
 end
