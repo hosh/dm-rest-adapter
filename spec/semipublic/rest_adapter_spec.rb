@@ -255,7 +255,12 @@ describe DataMapper::Adapters::RestAdapter do
       end
 
       context 'with a nested resource' do
-        it 'should generate a nested resource path for a resource with a composite primary key'
+        let (:model) { ::NestedResource }
+        let (:key) { [ 2, 1 ] }
+
+        it 'should generate a nested resource path for a resource with a composite primary key' do
+          resource_path.should eql("parents/2/resources/1")
+        end
       end
     end
 
