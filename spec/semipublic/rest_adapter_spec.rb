@@ -236,7 +236,7 @@ describe DataMapper::Adapters::RestAdapter do
     end
   end
 
-  context 'private API' do
+  context 'private API', :private_api => true do
     describe '#collection_path' do
       it 'should generate a collection path for a resource'
       it 'should generate a nested collection path for a nested resource'
