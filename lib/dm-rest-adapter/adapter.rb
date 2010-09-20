@@ -184,15 +184,15 @@ module DataMapperRest
       
       _resource_name = resource_name(query.model)
       
-      # This needs to be more efficient than O(4n)
-      key_conditions = conditions.select { |o| o.subject.key? }
+      # TODO: Can this be improved?
+      condition_keys = conditions.operands.classify { |o| (o.subject.key? ? :keys : :params ) }
 
       params = {}
-      conditions.reject { |o| o.subject.key? }.each do |c|
+      (condition_keys[:params] || []).each do |c|
         params[c.subject.name] = c.value
       end
 
-      return key_conditions.map(&:value), params
+      return (condition_keys[:keys] || []).map(&:value), params
     end
 
     def resource_name(model)
