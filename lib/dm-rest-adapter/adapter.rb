@@ -30,6 +30,8 @@ module DataMapperRest
       raw_records = Yajl::Parser.parse(body)
 
       records = []
+      return records unless raw_records && raw_records.any?
+
       raw_records.each do |raw_record|
         record = {}
         next unless raw_record[element_name]
@@ -60,7 +62,8 @@ module DataMapperRest
         response = connection.http_get(resource_path(model, id))
         [ JSON_PARSER.call(response.body, model, element_name(model)) ]
       else
-        response = connection.http_get(collection_path(model), :params => extract_params_from_query(query))
+        id, params = extract_params_from_query(query)
+        response = connection.http_get(collection_path(model, id), :params => params)
         MULTI_JSON_PARSER.call(response.body, model, element_name(model))
       end
 
@@ -95,7 +98,11 @@ module DataMapperRest
     private
 
     def collection_path(model, key = [] )
-      resource_name(model).zip(key).join('/')
+      if key.is_a?(Array)
+        resource_name(model).zip(key).join('/')
+      else
+        resource_name(model).join('/')
+      end
     end
 
     def resource_path(model, key)
@@ -169,13 +176,23 @@ module DataMapperRest
       end
     end
 
+    # TODO: This should be consolidated with extract_id_from_query and refactored carefully
     def extract_params_from_query(query)
       conditions = query.conditions
 
-      return {} unless conditions.kind_of?(DataMapper::Query::Conditions::AndOperation)
-      return {} if conditions.any? { |o| o.subject.key? }
+      return nil unless conditions.kind_of?(DataMapper::Query::Conditions::AndOperation)
+      
+      _resource_name = resource_name(query.model)
+      
+      # This needs to be more efficient than O(4n)
+      key_conditions = conditions.select { |o| o.subject.key? }
 
-      query.options
+      params = {}
+      conditions.reject { |o| o.subject.key? }.each do |c|
+        params[c.subject.name] = c.value
+      end
+
+      return key_conditions.map(&:value), params
     end
 
     def resource_name(model)
