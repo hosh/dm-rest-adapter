@@ -48,8 +48,9 @@ module DataMapperRest
     def create(resources)
       resources.each do |resource|
         model = resource.model
+        ids = model.key.map { |k| resource.send(k.name) }
 
-        response = connection.http_post(collection_path(model), :payload => { element_name(model) => resource.attributes }.to_json)
+        response = connection.http_post(collection_path(model, ids), :payload => { element_name(model) => resource.attributes }.to_json)
 
         update_with_response(resource, response)
       end
@@ -67,7 +68,7 @@ module DataMapperRest
         MULTI_JSON_PARSER.call(response.body, model, element_name(model))
       end
 
-      query.filter_records(records)
+      query.filter_records(records) 
     end
 
     def update(dirty_attributes, collection)

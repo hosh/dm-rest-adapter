@@ -180,10 +180,11 @@ describe DataMapper::Adapters::RestAdapter do
 
   describe '#update' do
     let(:another_name) { 'John Doe' }
-    let(:response) { stubbed_hydra; adapter.update({Resource.properties[:name] => another_name}, resources) }
-    let(:resources) { Resource.load([ existing_resource_attributes ], Resource.all.query ) }
 
     context 'with a top-level resource' do
+      let(:response) { stubbed_hydra; adapter.update({Resource.properties[:name] => another_name}, resources) }
+      let(:resources) { Resource.load([ existing_resource_attributes ], Resource.all.query ) }
+
       context 'when service does not return a json object' do
         let(:respond_with) { '' }
 
@@ -211,7 +212,10 @@ describe DataMapper::Adapters::RestAdapter do
       end
     end
 
-    pending 'with a nested resource' do
+    context 'with a nested resource' do
+      let(:response) { stubbed_hydra; adapter.update({NestedResource.properties[:name] => another_name}, resources) }
+      let(:resources) { NestedResource.load([ existing_nested_resource_attributes ], NestedResource.all.query ) }
+
       context 'when service does not return a json object' do
         let(:respond_with) { '' }
 
@@ -226,7 +230,7 @@ describe DataMapper::Adapters::RestAdapter do
       end
 
       context 'when service returns a json object' do
-        let(:respond_with) { { 'resource' => existing_resource_attributes.merge(:name => another_name) } }
+        let(:respond_with) { { 'nested_resource' => existing_nested_resource_attributes.merge(:name => another_name) } }
 
         it 'should return the number of updated Resources' do
           response.should eql(1)
@@ -243,16 +247,17 @@ describe DataMapper::Adapters::RestAdapter do
 
   describe '#delete' do
     let(:response) { stubbed_hydra; adapter.delete(resources) }
-    let(:resources) { Resource.load([ existing_resource_attributes ], Resource.all.query ) }
 
     context 'with a top-level resource' do 
-      it 'should return the number of updated Resources' do
+      let(:resources) { Resource.load([ existing_resource_attributes ], Resource.all.query ) }
+      it 'should return the number of deleted Resources' do
         response.should eql(1)
       end
     end
 
-    pending 'with a nested resource' do
-      it 'should return the number of updated Resources' do
+    context 'with a nested resource' do
+      let(:resources) { Resource.load([ existing_resource_attributes ], NestedResource.all.query ) }
+      it 'should return the number of deleted Nested Resources' do
         response.should eql(1)
       end
     end
