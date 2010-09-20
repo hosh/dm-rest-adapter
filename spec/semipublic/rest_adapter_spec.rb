@@ -315,6 +315,12 @@ describe DataMapper::Adapters::RestAdapter do
           it 'should extract the composite primary key from a nested resource' do
             should eql([2,1])
           end
+
+          it 'should extract keys in an deterministic order' do
+            1.upto(20) do 
+              adapter.send(:extract_id_from_query, query).should eql([2,1])
+            end
+          end
         end
 
         context 'when querying by composite primary key, no limit' do

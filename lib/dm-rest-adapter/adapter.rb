@@ -167,13 +167,10 @@ module DataMapperRest
       _resource_name = resource_name(query.model)
 
       return nil unless conditions.kind_of?(DataMapper::Query::Conditions::AndOperation)
-      return nil unless (key_condition = conditions.select { |o| o.subject.key? }).size == _resource_name.size
 
-      if _resource_name.size == 1
-        [ key_condition.first.value ]
-      else
-        key_condition[0..(_resource_name.size - 1)].map(&:value)
-      end
+      keys, params = extract_condition_map(query)
+      return nil unless (keys - [ nil ]).size == _resource_name.size
+      return keys
     end
 
     # TODO: This should be consolidated with extract_id_from_query and refactored carefully
@@ -183,16 +180,34 @@ module DataMapperRest
       return nil unless conditions.kind_of?(DataMapper::Query::Conditions::AndOperation)
       
       _resource_name = resource_name(query.model)
-      
-      # TODO: Can this be improved?
-      condition_keys = conditions.operands.classify { |o| (o.subject.key? ? :keys : :params ) }
+
+      extract_condition_map(query)
+    end
+
+    # TODO: Can this be improved?
+    def extract_condition_map(query)
+      condition_keys = query.conditions.operands.classify { |o| (o.subject.key? ? :keys : :params ) }
+
+      # TODO: Improve this better than O(n^2)
+      keys = if condition_keys[:keys]
+               query.model.key.map do |k|
+                 o = condition_keys[:keys].find { |o| o.subject.name == k.name }
+                 if o
+                   o.value
+                 else
+                   nil
+                 end
+               end
+             else
+               []
+             end
 
       params = {}
       (condition_keys[:params] || []).each do |c|
         params[c.subject.name] = c.value
       end
 
-      return (condition_keys[:keys] || []).map(&:value), params
+      return keys, params
     end
 
     def resource_name(model)
