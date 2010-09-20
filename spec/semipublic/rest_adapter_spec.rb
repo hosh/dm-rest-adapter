@@ -29,9 +29,11 @@ describe DataMapper::Adapters::RestAdapter do
   let(:hydra) { Typhoeus::Hydra.hydra }
 
   let(:resource) { ::Resource.new(resource_attributes) }
+  let(:nested_resource) { NestedResource.new(nested_resource_attributes) }
   let(:resource_attributes) { { :name => 'Name' }.stringify_keys }
+  let(:nested_resource_attributes) { resource_attributes.merge({:parent_id => parent_id}).stringify_keys }
   let(:existing_resource_attributes) { resource_attributes.merge({:id => resource_id }).stringify_keys }
-  let(:existing_nested_resource_attributes) { existing_resource_attributes.merge({:parent_id => parent_id }).stringify_keys }
+  let(:existing_nested_resource_attributes) { existing_resource_attributes.merge(nested_resource_attributes).stringify_keys }
   let(:resources) { [ resource ] }
   let(:resource_id) { 1 }
   let(:parent_id) { 2 }
@@ -54,10 +56,10 @@ describe DataMapper::Adapters::RestAdapter do
   describe '#create' do
     let(:stub_method) { :post }
     let(:stubbed_response_code) { 201 }
-    let(:respond_with) { { :resource => existing_resource_attributes } }
     let(:response) { stubbed_hydra; adapter.create(resources) }
     
     context 'with a top-level resource' do
+      let(:respond_with) { { :resource => existing_resource_attributes } }
       it 'should return an Array containing the Resource' do
         response.should eql(resources)
       end
@@ -67,7 +69,9 @@ describe DataMapper::Adapters::RestAdapter do
       end
     end
 
-    pending 'with a nested resource' do
+    context 'with a nested resource' do
+      let(:resources) { [ nested_resource ] }
+      let(:respond_with) { { :nested_resource => existing_nested_resource_attributes } }
       it 'should return an Array containing the Resource' do
         response.should eql(resources)
       end
