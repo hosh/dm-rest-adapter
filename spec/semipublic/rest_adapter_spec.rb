@@ -12,6 +12,8 @@ module Typhoeus
   end
 end
 
+# TODO: Need helpers to generate mock attributes
+
 describe DataMapper::Adapters::RestAdapter do
 
   let(:adapter) { 
@@ -29,8 +31,10 @@ describe DataMapper::Adapters::RestAdapter do
   let(:resource) { ::Resource.new(resource_attributes) }
   let(:resource_attributes) { { :name => 'Name' }.stringify_keys }
   let(:existing_resource_attributes) { resource_attributes.merge({:id => resource_id }).stringify_keys }
+  let(:existing_nested_resource_attributes) { existing_resource_attributes.merge({:parent_id => parent_id }).stringify_keys }
   let(:resources) { [ resource ] }
   let(:resource_id) { 1 }
+  let(:parent_id) { 2 }
 
   let(:collection_url) { 'http://example.org:9999/resources' }
   let(:resource_url) { 'http://example.org:9999/resources/1' }
@@ -75,11 +79,11 @@ describe DataMapper::Adapters::RestAdapter do
   end
 
   describe '#read' do
-    let(:collection) { [ { :resource => existing_resource_attributes }.with_indifferent_access ] }
     let(:respond_with) { collection }
     let(:response) { stubbed_hydra; adapter.read(query) }
 
     context 'with a top-level resource' do
+      let(:collection) { [ { :resource => existing_resource_attributes }.with_indifferent_access ] }
       context 'with unscoped query' do
         let(:query) { Resource.all.query }
 
@@ -117,40 +121,54 @@ describe DataMapper::Adapters::RestAdapter do
       end
     end
   
-    pending 'with a nested resource' do
+    context 'with a nested resource' do
+      let(:collection) { [ { :nested_resource => existing_nested_resource_attributes }.with_indifferent_access ] }
+      let(:nested_resource) { { :nested_resource => existing_nested_resource_attributes }.with_indifferent_access }
       context 'with unscoped query' do
-        let(:query) { Resource.all.query }
+        let(:query) { NestedResource.all.query }
 
         it 'should return an array with the matching records' do
-          response.should eql([ existing_resource_attributes ])
+          response.should eql([ existing_nested_resource_attributes ])
+        end
+      end
+
+      context 'with query scoped by the complete composite primary key' do
+        let(:stub_url) { resource_url }
+        let(:respond_with) { nested_resource }
+        let(:query) { NestedResource.all(:id => 1, :parent_id => 2, :limit => 1 ).query }
+
+        it 'should return an array with the matching records' do
+          response.should eql([ existing_nested_resource_attributes ])
+        end
+      end
+
+      context 'with query scoped by parent key' do
+        let(:stub_url) { resource_url }
+        let(:respond_with) { [ nested_resource ] }
+        let(:query) { NestedResource.all(:parent_id => 2, :limit => 1 ).query }
+
+        it 'should return an array with the matching records' do
+          response.should eql([ existing_nested_resource_attributes ])
         end
       end
 
       context 'with query scoped by a key' do
         let(:stub_url) { resource_url }
-        let(:respond_with) { { :resource => existing_resource_attributes } }
-        let(:query) { Resource.all(:id => 1, :limit => 1 ).query }
+        let(:respond_with) { [ nested_resource ] }
+        let(:query) { NestedResource.all(:id => 1, :limit => 1 ).query }
 
         it 'should return an array with the matching records' do
-          response.should eql([ existing_resource_attributes ])
+          response.should eql([ existing_nested_resource_attributes ])
         end
       end
 
       context 'with query scoped by a non-key' do
-        let(:collection) { [ { :resource => existing_resource_attributes }, 
-          { :resource => { :id => 2, :name => 'Someone Else' }.stringify_keys } ].map(&:stringify_keys) }
-        let(:query) { Resource.all(:name => 'Name').query }
+        let(:collection) { [ { :nested_resource => existing_nested_resource_attributes }, 
+          { :nested_resource => { :id => 2, :parent_id => 2, :name => 'Someone Else' }.stringify_keys } ].map(&:stringify_keys) }
+        let(:query) { NestedResource.all(:name => 'Name').query }
 
         it 'should return an array with the matching records' do
-          response.should eql([ existing_resource_attributes ])
-        end
-      end
-
-      context 'with a non-standard model <=> storage_name relationship' do
-        let(:query) { NonStandardResource.all.query }
-
-        it 'should return an array with the matching records' do
-          response.should eql([ existing_resource_attributes ])
+          response.should eql([ existing_nested_resource_attributes ])
         end
       end
     end

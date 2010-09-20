@@ -14,6 +14,10 @@ class NestedResource
     self._resource_name
   end
 
+  def self.element_name(repository)
+    'nested_resource'
+  end
+
   def self.storage_names
     { :default => self._resource_name }
   end

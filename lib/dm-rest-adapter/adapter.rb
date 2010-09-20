@@ -32,6 +32,7 @@ module DataMapperRest
       records = []
       raw_records.each do |raw_record|
         record = {}
+        next unless raw_record[element_name]
         raw_record[element_name].each do |field, value|
           # TODO: push this to the per-property mix-in for this adapter
           next unless property = field_to_property[field]
@@ -184,7 +185,7 @@ module DataMapperRest
     end
 
     def element_name(model)
-      resource_name(model).last.singularize
+      model.element_name(self.name)
     end
 
 
