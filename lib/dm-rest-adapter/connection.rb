@@ -34,7 +34,7 @@ module DataMapperRest
 
       # See O'Reilly The Ruby Programming Language, p 126
       case method
-      when :post, :put
+      when :post, :put, :delete
         request.merge!(:body => options[:payload])
       else
       end
